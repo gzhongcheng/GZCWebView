@@ -1,0 +1,2 @@
+# GZCWebView
+对UIWebView和WKWebView的封装，增加了长按图片弹出保存及分享选项，截图功能，以及打开带cookie的链接的功能

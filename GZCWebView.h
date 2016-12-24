@@ -8,7 +8,6 @@
 
 #import <UIKit/UIKit.h>
 #import <WebKit/WebKit.h>
-#import "GZCActionSheet.h"
 
 @class GZCWebView;
 @protocol GZCWebViewDelegate <NSObject>
@@ -21,7 +20,7 @@
 - (void)GZCWebView:(GZCWebView *)webview didLongTapShared:(NSString *)imageUrl;
 @end
 
-@interface GZCWebView : UIView<WKNavigationDelegate, WKUIDelegate, UIWebViewDelegate,UIGestureRecognizerDelegate,GZCActionSheetDelegate>
+@interface GZCWebView : UIView<WKNavigationDelegate, WKUIDelegate, UIWebViewDelegate>
 
 #pragma mark - Public Properties
 @property (nonatomic, weak) id <GZCWebViewDelegate> delegate;
@@ -32,21 +31,23 @@
 @property (nonatomic, strong) WKWebView *wkWebView;
 @property (nonatomic, strong) UIWebView *uiWebView;
 
-@property (nonatomic,assign) BOOL shouldLontTapImage;  //长按图片是否显示选项,默认为no
-
 #pragma mark - Initializers view
 - (instancetype)initWithFrame:(CGRect)frame;
 
-- (instancetype)initWithFrame:(CGRect)frame cookie:(NSArray *)cookie;
+- (instancetype)initWithFrame:(CGRect)frame cookie:(NSArray <NSHTTPCookie *>*)cookie;
 
 #pragma mark - Static Initializers
 @property (nonatomic, strong) UIBarButtonItem *actionButton;
 @property (nonatomic, strong) UIColor *tintColor;
 @property (nonatomic, strong) UIColor *barTintColor;
+
+@property (nonatomic,strong) NSDictionary * cookies;
+
 @property (nonatomic, assign) BOOL actionButtonHidden;
 @property (nonatomic, assign) BOOL showsURLInNavigationBar;
 @property (nonatomic, assign) BOOL showsPageTitleInNavigationBar;
-@property (nonatomic,strong) NSDictionary * cookies;
+@property (nonatomic,assign) BOOL shouldLontTapImage;  //长按图片是否显示选项,默认为no
+
 @property (nonatomic, strong) NSArray *customActivityItems;
 
 #pragma mark - Public Interface
@@ -66,18 +67,6 @@
 //截图
 -(void)getCapture:(void (^ )(UIImage * capture))completionHandler;
 
-//打开链接
-- (void)loadRequest:(NSURLRequest *)request;
-- (void)loadURL:(NSURL *)URL;
-- (void)loadURLString:(NSString *)URLString;
-
-//打开链接并传递cookie
-- (void)loadRequest:(NSURLRequest *)request
-         withCookie:(NSDictionary *)cookies;
-- (void)loadURL:(NSURL *)URL
-     withCookie:(NSDictionary *)cookies;
-- (void)loadURLString:(NSString *)URLString
-           withCookie:(NSDictionary *)cookies;
 
 //更新cookie
 -(void)updateCookie:(NSArray *)cookies url:(NSURL *)url;
@@ -90,6 +79,25 @@
 
 //清空cookie
 -(void)clearCookie:(NSURL *)url;
+
+//打开链接
+- (void)loadURL:(NSURL *)URL;
+- (void)loadURLString:(NSString *)URLString;
+- (void)loadRequest:(NSURLRequest *)request;
+
+//打开链接并传递cookie
+//- (void)loadURLWithCookie:(NSURL *)URL;
+//- (void)loadURLStringWithCookie:(NSString *)URLString;
+//- (void)loadRequestWithCookie:(NSURLRequest *)request;
+
+
+//打开链接并传递cookie
+- (void)loadRequest:(NSURLRequest *)request
+         withCookie:(NSDictionary *)cookies;
+- (void)loadURL:(NSURL *)URL
+     withCookie:(NSDictionary *)cookies;
+- (void)loadURLString:(NSString *)URLString
+           withCookie:(NSDictionary *)cookies;
 
 //打开html字符串
 - (void)loadHTMLString:(NSString *)HTMLString;

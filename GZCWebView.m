@@ -8,16 +8,15 @@
 
 #import "GZCWebView.h"
 #import "UIView+ScreenCapture.h"
-#import "WKWebView+ScreenCapture.h"
 #import "GZCActionSheet.h"
-#import "UIImageView+WebCache.h"
+#import "WKWebView+ScreenCapture.h"
+#import "UserModel.h"
 
 #define isiOS8 [[[UIDevice currentDevice] systemVersion] floatValue]>=8.0
 #define progressTintColor [UIColor colorWithRed:0.400 green:0.863 blue:0.133 alpha:1.000]
-
 static void *GZCWebBrowserContext = &GZCWebBrowserContext;
 
-@interface GZCWebView ()<UIAlertViewDelegate>
+@interface GZCWebView ()<UIAlertViewDelegate,GZCActionSheetDelegate,UIGestureRecognizerDelegate>
 @property (nonatomic, strong) NSTimer *fakeProgressTimer;
 @property (nonatomic, assign) BOOL uiWebViewIsLoading;
 @property (nonatomic, strong) NSURL *uiWebViewCurrentURL;
@@ -35,13 +34,13 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
     return [self initWithFrame:frame cookie:nil];
 }
 
-- (instancetype)initWithFrame:(CGRect)frame cookie:(NSArray *)cookie
+- (instancetype)initWithFrame:(CGRect)frame cookie:(NSArray <NSHTTPCookie *> *)cookie
 {
     self = [super initWithFrame:frame];
     if (self) {
         if(isiOS8) {
             if ([cookie count]) {
-                self.wkWebView = [[WKWebView alloc]initWithFrame:frame configuration:[self getconfigurationWithCookies:cookie]];
+                self.wkWebView = [[WKWebView alloc]initWithFrame:self.bounds configuration:[self getconfigurationWithCookies:cookie]];
             }else{
                 self.wkWebView = [[WKWebView alloc] init];
             }
@@ -52,7 +51,7 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
         }
         self.backgroundColor = [UIColor redColor];
         if(self.wkWebView) {
-            [self.wkWebView setFrame:frame];
+            [self.wkWebView setFrame:self.bounds];
             [self.wkWebView setAutoresizingMask:UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight];
             [self.wkWebView setNavigationDelegate:self];
             [self.wkWebView setUIDelegate:self];
@@ -68,7 +67,7 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
             [self.wkWebView addGestureRecognizer:longPress];
         }
         else  {
-            [self.uiWebView setFrame:frame];
+            [self.uiWebView setFrame:self.bounds];
             [self.uiWebView setAutoresizingMask:UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight];
             [self.uiWebView setDelegate:self];
             [self.uiWebView setMultipleTouchEnabled:YES];
@@ -79,7 +78,7 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
             [self addSubview:self.uiWebView];
             UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(uiLongPressed:)];
             longPress.delegate = self;
-            [self.wkWebView addGestureRecognizer:longPress];
+            [self.uiWebView addGestureRecognizer:longPress];
         }
         
         self.progressView = [[UIProgressView alloc] initWithProgressViewStyle:UIProgressViewStyleDefault];
@@ -93,6 +92,8 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
     }
     return self;
 }
+
+
 
 #pragma mark - Public Interface
 -(void)updateCookie:(NSArray *)cookies url:(NSURL *)url{
@@ -193,9 +194,9 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
 
 -(void)getCapture:(void (^)(UIImage *))completionHandler{
     if (isiOS8)
-       [self.wkWebView captureCallback:^(UIImage * _Nullable capturedImage) {
-           completionHandler(capturedImage);
-        }];
+       [self.wkWebView captureCallback:^(UIImage *image) {
+           completionHandler(image);
+       }];
     else{
         UIImage *capture = [self.uiWebView capture];
         completionHandler(capture);
@@ -225,13 +226,27 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
     }
 }
 
-- (void)loadRequest:(NSURLRequest *)request {
-    if(self.wkWebView) {
-        [self.wkWebView loadRequest:request];
-    }
-    else  {
-        [self.uiWebView loadRequest:request];
-    }
+#pragma mark - loadUrl
+//-(void)loadURLStringWithCookie:(NSString *)URLString{
+//    NSURL *URL = [NSURL URLWithString:URLString];
+//    [self loadURLWithCookie:URL];
+//}
+//
+//-(void)loadURLWithCookie:(NSURL *)URL{
+//    [self loadRequestWithCookie:[NSURLRequest requestWithURL:URL]];
+//}
+//
+//-(void)loadRequestWithCookie:(NSURLRequest *)request{
+//    [self loadRequest:request withCookie:[UserModel shareInstance].cookie];
+//}
+
+-(void)loadURL:(NSURL *)URL withCookie:(NSDictionary *)cookies{
+    [self loadRequest:[NSURLRequest requestWithURL:URL] withCookie:cookies];
+}
+
+-(void)loadURLString:(NSString *)URLString withCookie:(NSDictionary *)cookies{
+    NSURL *URL = [NSURL URLWithString:URLString];
+    [self loadURL:URL withCookie:cookies];
 }
 
 -(void)loadRequest:(NSURLRequest *)request withCookie:(NSDictionary *)cookies{
@@ -240,13 +255,17 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
     }
     if(self.wkWebView) {
         NSMutableURLRequest *mrequest = [NSMutableURLRequest requestWithURL:request.URL];
+        //获取原来的cookie
         NSString *cookie = [self readCurrentCookie];
         for (NSString *key in [cookies allKeys]) {
+            //如果没有cookies中的值存在，就拼接上去
             if ([cookie rangeOfString:key].length == 0) {
                 cookie = [NSString stringWithFormat:@"%@;%@=%@",cookie,key,[cookies objectForKey:key]];
             }
         }
+        //设置cookie到header
         [mrequest addValue:cookie forHTTPHeaderField:@"Cookie"];
+        //打开请求
         [self.wkWebView loadRequest:mrequest];
     }
     else  {
@@ -258,18 +277,18 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
     [self loadRequest:[NSURLRequest requestWithURL:URL]];
 }
 
--(void)loadURL:(NSURL *)URL withCookie:(NSDictionary *)cookies{
-    [self loadRequest:[NSURLRequest requestWithURL:URL] withCookie:cookies];
-}
-
 - (void)loadURLString:(NSString *)URLString {
     NSURL *URL = [NSURL URLWithString:URLString];
     [self loadURL:URL];
 }
 
--(void)loadURLString:(NSString *)URLString withCookie:(NSDictionary *)cookies{
-    NSURL *URL = [NSURL URLWithString:URLString];
-    [self loadURL:URL withCookie:cookies];
+- (void)loadRequest:(NSURLRequest *)request {
+    if(self.wkWebView) {
+        [self.wkWebView loadRequest:request];
+    }
+    else  {
+        [self.uiWebView loadRequest:request];
+    }
 }
 
 - (void)loadHTMLString:(NSString *)HTMLString {
@@ -281,6 +300,8 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
     }
 }
 
+#pragma mark - set
+
 - (void)setTintColor:(UIColor *)tintColor {
     _tintColor = tintColor;
     [self.progressView setTintColor:tintColor];
@@ -290,6 +311,7 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
     _barTintColor = barTintColor;
 }
 
+#pragma mark - cookie get
 - (WKWebViewConfiguration *)getconfigurationWithCookies:(NSArray *)cookies{
     if ([cookies count]) {
         NSDictionary *headers=[NSHTTPCookie requestHeaderFieldsWithCookies:cookies];
@@ -383,7 +405,6 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
     }
 }
 
-
 #pragma mark - actionSheetDelegate
 -(void)actionSheet:(GZCActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex{
     switch (buttonIndex) {
@@ -423,6 +444,7 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
 }
 
 
+
 #pragma mark - UIWebViewDelegate
 
 - (void)webViewDidStartLoad:(UIWebView *)webView
@@ -435,12 +457,15 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
 
 //监视请求
 - (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType {
+    
     if(webView == self.uiWebView) {
+        
         if(![self externalAppRequiredToOpenURL:request.URL]) {
             self.uiWebViewCurrentURL = request.URL;
             self.uiWebViewIsLoading = YES;
             
             [self fakeProgressViewStartLoading];
+            
             
             //back delegate
             [self.delegate GZCwebView:self shouldStartLoadWithURL:request.URL];
@@ -456,6 +481,8 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
 
 
 - (void)webViewDidFinishLoad:(UIWebView *)webView {
+    
+    
     if(webView == self.uiWebView) {
         if(!self.uiWebView.isLoading) {
             self.uiWebViewIsLoading = NO;
@@ -470,13 +497,13 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
 }
 
 - (void)webView:(UIWebView *)webView didFailLoadWithError:(NSError *)error {
+    
     if(webView == self.uiWebView) {
         if(!self.uiWebView.isLoading) {
             self.uiWebViewIsLoading = NO;
             
             [self fakeProgressBarStopLoading];
         }
-        
         //back delegate
         [self.delegate GZCwebView:self didFailToLoadURL:self.uiWebView.request.URL error:error];
     }
@@ -498,6 +525,7 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
 }
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
+    
     if(webView == self.wkWebView) {
         
         //back delegate
@@ -523,11 +551,15 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
 }
 
 - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
+    
+    
     if(webView == self.wkWebView) {
+        
         NSURL *URL = navigationAction.request.URL;
         if(![self externalAppRequiredToOpenURL:URL]) {
             if(!navigationAction.targetFrame) {
-                [self loadURL:URL withCookie:self.cookies];
+//                [self loadURLWithCookie:URL];
+                [self loadRequest:navigationAction.request withCookie:self.cookies];
                 decisionHandler(WKNavigationActionPolicyCancel);
                 return;
             }
@@ -541,6 +573,9 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
             return;
         }
     }
+    
+    
+    
     decisionHandler(WKNavigationActionPolicyAllow);
     
     
@@ -621,6 +656,7 @@ static void *GZCWebBrowserContext = &GZCWebBrowserContext;
 
 #pragma mark - External App Support
 - (BOOL)externalAppRequiredToOpenURL:(NSURL *)URL {
+    
     //若需要限制只允许某些前缀的scheme通过请求，则取消下述注释，并在数组内添加自己需要放行的前缀
     //    NSSet *validSchemes = [NSSet setWithArray:@[@"http", @"https",@"file"]];
     //    return ![validSchemes containsObject:URL.scheme];

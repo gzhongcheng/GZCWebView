@@ -1,6 +1,6 @@
 //
 //  GZCWebView.h
-//  MemberSystem
+//  GZCFrameWork
 //
 //  Created by GuoZhongCheng on 16/9/2.
 //  Copyright © 2016年 郭忠橙. All rights reserved.
@@ -12,45 +12,66 @@
 @class GZCWebView;
 @protocol GZCWebViewDelegate <NSObject>
 @optional
+
+/**
+ 页面加载完成
+ */
 - (void)GZCwebView:(GZCWebView *)webview didFinishLoadingURL:(NSURL *)URL;
+
+/**
+ 加载失败
+ */
 - (void)GZCwebView:(GZCWebView *)webview didFailToLoadURL:(NSURL *)URL error:(NSError *)error;
+
+/**
+ 即将开始加载页面
+ */
 - (BOOL)GZCwebView:(GZCWebView *)webview shouldStartLoadWithURL:(NSURL *)URL;
+
+/**
+ 开始加载
+ */
 - (void)GZCwebViewDidStartLoad:(GZCWebView *)webview;
+
+/**
+ 长按图片保存结束
+ */
 - (void)GZCWebView:(GZCWebView *)webview didSavedImage:(NSString *)savedMessage;
+
+/**
+ 内容图片长按分享事件
+ */
 - (void)GZCWebView:(GZCWebView *)webview didLongTapShared:(NSString *)imageUrl;
 @end
 
-@interface GZCWebView : UIView<WKNavigationDelegate, WKUIDelegate, UIWebViewDelegate>
+@interface GZCWebView : UIView<WKNavigationDelegate, WKUIDelegate>
 
 #pragma mark - Public Properties
 @property (nonatomic, weak) id <GZCWebViewDelegate> delegate;
 
-
 @property (nonatomic, strong) UIProgressView *progressView;
-
 @property (nonatomic, strong) WKWebView *wkWebView;
-@property (nonatomic, strong) UIWebView *uiWebView;
+
+#pragma mark - Static Initializers
+
+@property (nonatomic, strong) UIColor *tintColor;   //影响进度条颜色
+
+@property (nonatomic,strong) NSDictionary * cookies;  //浏览器的cookie
+
+@property (nonatomic,assign) BOOL shouldLontTapImage;  //长按图片是否显示选项,默认为no
+
+@property (nonatomic,weak) UIViewController *controller; //弹出ActionSheet时用到的controller
 
 #pragma mark - Initializers view
 - (instancetype)initWithFrame:(CGRect)frame;
 
-- (instancetype)initWithFrame:(CGRect)frame cookie:(NSArray <NSHTTPCookie *>*)cookie;
-
-#pragma mark - Static Initializers
-@property (nonatomic, strong) UIBarButtonItem *actionButton;
-@property (nonatomic, strong) UIColor *tintColor;
-@property (nonatomic, strong) UIColor *barTintColor;
-
-@property (nonatomic,strong) NSDictionary * cookies;
-
-@property (nonatomic, assign) BOOL actionButtonHidden;
-@property (nonatomic, assign) BOOL showsURLInNavigationBar;
-@property (nonatomic, assign) BOOL showsPageTitleInNavigationBar;
-@property (nonatomic,assign) BOOL shouldLontTapImage;  //长按图片是否显示选项,默认为no
-
-@property (nonatomic, strong) NSArray *customActivityItems;
+- (instancetype)initWithFrame:(CGRect)frame
+                       cookie:(NSArray <NSHTTPCookie *> *)cookie
+                   controller:(UIViewController *)controller;
 
 #pragma mark - Public Interface
+//设置ua
+-(void)addUserAgent:(NSString *)name;
 
 //获取当前页面的title
 -(NSString *)getWebTitle;
@@ -67,7 +88,6 @@
 //截图
 -(void)getCapture:(void (^ )(UIImage * capture))completionHandler;
 
-
 //更新cookie
 -(void)updateCookie:(NSArray *)cookies url:(NSURL *)url;
 
@@ -77,6 +97,13 @@
 //获取cookie字符串
 -(void)getCookieString:(void (^)(NSString *cookieStr))completionHandle;
 
+/**
+ 获取网页上的cookie ,并转换成字典格式
+
+ @param completionHandler 回调函数
+ */
+-(void)getCookieDictionary:(void (^)(NSDictionary *cookieDic))completionHandler;
+
 //清空cookie
 -(void)clearCookie:(NSURL *)url;
 
@@ -84,6 +111,9 @@
 - (void)loadURL:(NSURL *)URL;
 - (void)loadURLString:(NSString *)URLString;
 - (void)loadRequest:(NSURLRequest *)request;
+
+//取消加载
+- (void)stopLoading;
 
 //打开链接并传递cookie
 //- (void)loadURLWithCookie:(NSURL *)URL;
